@@ -35,6 +35,7 @@ import json
 import time
 import logging
 import argparse
+import threading
 from pathlib import Path
 from urllib.parse import urljoin, urlparse, urlencode
 
@@ -398,6 +399,7 @@ def run(
     doc_types: list[str] | None = None,
     dry_run: bool = False,
     all_docs: bool = False,
+    stop_flag: "threading.Event | None" = None,
 ) -> None:
     """
     Main entry point: discover cases, filter for public richness, download PDFs.
@@ -409,6 +411,7 @@ def run(
         doc_types:        Override the default target document type keywords.
         dry_run:          Print what would be downloaded without actually downloading.
         all_docs:         Download every document on a case page, not just target types.
+        stop_flag:        threading.Event; if set, the run loop will exit cleanly.
     """
     if doc_types:
         TARGET_DOC_KEYWORDS.clear()
@@ -440,6 +443,10 @@ def run(
              "downloaded": 0, "failed": 0}
 
     for idx, (case_name, case_url) in enumerate(cases, 1):
+        if stop_flag and stop_flag.is_set():
+            log.info("Stop flag set — exiting early.")
+            break
+
         log.info(f"\n[{idx}/{len(cases)}] {case_name}")
         log.info(f"  URL: {case_url}")
         stats["processed"] += 1
